@@ -1,12 +1,10 @@
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread
 import llama_cpp
 import queue
 import threading
 
 
 class ModelThread(QThread):
-    response_signal = pyqtSignal(str)
-
     def __init__(self, model_path):
         super().__init__()
         self.model_path = model_path
@@ -17,36 +15,33 @@ class ModelThread(QThread):
     def run(self):
         try:
             self.model = llama_cpp.Llama(self.model_path)
-
-            # Запускаем отдельный поток обработки запросов
             threading.Thread(target=self.process_tasks, daemon=True).start()
-
             while self.running:
-                self.msleep(100)  # Ожидание в основном QThread (можно оставить)
+                self.msleep(100)
         except Exception as e:
-            self.response_signal.emit(f"Ошибка загрузки модели: {e}")
+            pass
 
     def stop(self):
         self.running = False
-        self.task_queue.put(None)  # Останавливаем поток задач
+        self.task_queue.put(None)
         self.wait()
 
-    def generate_response(self, prompt):
-        # Просто добавляем задачу в очередь
-        self.task_queue.put(prompt)
+    def generate_response(self, prompt, callback):
+        self.task_queue.put((prompt, callback))
 
     def process_tasks(self):
         while self.running:
-            prompt = self.task_queue.get()
-            if prompt is None:
+            item = self.task_queue.get()
+            if item is None:
                 break
 
+            prompt, callback = item
             if self.model:
                 try:
                     output = self.model(prompt, max_tokens=100, stop=["\n"], echo=False)
                     response = output["choices"][0]["text"]
-                    self.response_signal.emit(response)
+                    callback(response)
                 except Exception as e:
-                    self.response_signal.emit(f"Ошибка генерации: {e}")
+                    callback(f"Ошибка генерации: {e}")
             else:
-                self.response_signal.emit("Модель не загружена.")
+                callback("Модель не загружена.")

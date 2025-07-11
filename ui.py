@@ -129,8 +129,6 @@ class InteractionWindow(QWidget):
         self.setLayout(layout)
 
         self.send_button.clicked.connect(self.send_prompt)
-        self.model_thread.response_signal.connect(self.display_response)
-
         self.is_waiting = False
 
     def send_prompt(self):
@@ -142,8 +140,9 @@ class InteractionWindow(QWidget):
             self.is_waiting = True
             self.status_label.setText("Генерация...")
             self.send_button.setEnabled(False)
-            self.model_thread.generate_response(prompt)
             self.prompt_input.clear()
+
+            self.model_thread.generate_response(prompt, self.display_response)
 
     def display_response(self, response):
         self.response_area.append(response)
