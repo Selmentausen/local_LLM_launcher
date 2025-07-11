@@ -110,12 +110,16 @@ class InteractionWindow(QWidget):
 
         layout = QGridLayout()
         layout.addWidget(QLabel("Введите запрос:"), 0, 0, 1, 2)
+
         self.prompt_input = QLineEdit()
         layout.addWidget(self.prompt_input, 1, 0, 1, 2)
 
         self.send_button = QPushButton("Отправить")
         self.send_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
-        layout.addWidget(self.send_button, 2, 0, 1, 2)
+        layout.addWidget(self.send_button, 2, 0)
+
+        self.status_label = QLabel("")
+        layout.addWidget(self.status_label, 2, 1)
 
         layout.addWidget(QLabel("Ответ:"), 3, 0, 1, 2)
         self.response_area = QTextEdit()
@@ -127,11 +131,22 @@ class InteractionWindow(QWidget):
         self.send_button.clicked.connect(self.send_prompt)
         self.model_thread.response_signal.connect(self.display_response)
 
+        self.is_waiting = False
+
     def send_prompt(self):
+        if self.is_waiting:
+            return
+
         prompt = self.prompt_input.text()
         if prompt:
+            self.is_waiting = True
+            self.status_label.setText("Генерация...")
+            self.send_button.setEnabled(False)
             self.model_thread.generate_response(prompt)
             self.prompt_input.clear()
 
     def display_response(self, response):
         self.response_area.append(response)
+        self.status_label.setText("")
+        self.send_button.setEnabled(True)
+        self.is_waiting = False
